@@ -4,6 +4,9 @@ const PDF_PAGE_HEIGHT_PT = 841.89;
 const EXPORT_RENDER_SCALE = Math.max(2, window.devicePixelRatio || 1);
 const A4_RATIO = 297 / 210;
 const A4_HEIGHT_TOLERANCE_PX = 6;
+const DETAIL_TEXT_CHUNK_SIZE = 118;
+const DETAIL_FIRST_PAGE_CAPACITY = 170;
+const DETAIL_CONTINUED_PAGE_CAPACITY = 320;
 
 const documentRootElement = document.getElementById("document-root");
 const downloadAllButtonElement = document.getElementById("download-all-pdf");
@@ -94,22 +97,190 @@ function hasDetailSections(item) {
   return Array.isArray(item.detailSections) && item.detailSections.length > 0;
 }
 
-function buildSectionParts(section) {
+function splitParagraphIntoChunks(paragraph, chunkSize = DETAIL_TEXT_CHUNK_SIZE) {
+  const normalized = String(paragraph || "").trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const primaryParts = normalized.match(/[^。！？；]+[。！？；]?/g) || [normalized];
+  const chunks = [];
+  let current = "";
+
+  primaryParts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .forEach((part) => {
+      if (!current || current.length + part.length <= chunkSize) {
+        current += part;
+        return;
+      }
+
+      chunks.push(current);
+      current = part;
+    });
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks.flatMap((chunk) => {
+    if (chunk.length <= chunkSize * 1.2) {
+      return [chunk];
+    }
+
+    const refinedParts = chunk.match(/[^，、]+[，、]?/g) || [chunk];
+    const refinedChunks = [];
+    let refinedCurrent = "";
+
+    refinedParts
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        if (!refinedCurrent || refinedCurrent.length + part.length <= chunkSize) {
+          refinedCurrent += part;
+          return;
+        }
+
+        refinedChunks.push(refinedCurrent);
+        refinedCurrent = part;
+      });
+
+    if (refinedCurrent) {
+      refinedChunks.push(refinedCurrent);
+    }
+
+    return refinedChunks;
+  });
+}
+
+function createDetailBlocks(item) {
+  return (item.detailSections || []).flatMap((detailSection) => {
+    const paragraphs = (detailSection.paragraphs || []).flatMap((paragraph) =>
+      splitParagraphIntoChunks(paragraph)
+    );
+
+    return paragraphs.map((paragraph, index) => ({
+      heading: index === 0 ? detailSection.heading : `${detailSection.heading}（續）`,
+      paragraphs: [paragraph]
+    }));
+  });
+}
+
+function getDetailBlockWeight(block) {
+  const paragraphLength = (block.paragraphs || []).join("").length;
+  return paragraphLength + Math.max(28, (block.heading || "").length * 4);
+}
+
+function distributeDetailBlocks(blocks, pageCount, imageCount, descLength) {
+  const resolvedPageCount = Math.max(1, Math.min(pageCount, blocks.length || 1));
+  const capacities = Array.from({ length: resolvedPageCount }, (_, index) => {
+    if (index === 0) {
+      return Math.max(
+        150,
+        DETAIL_FIRST_PAGE_CAPACITY - imageCount * 32 - Math.round(descLength * 0.22)
+      );
+    }
+
+    return DETAIL_CONTINUED_PAGE_CAPACITY;
+  });
+
+  const pages = Array.from({ length: resolvedPageCount }, () => []);
+  let pageIndex = 0;
+  let pageWeight = 0;
+
+  blocks.forEach((block, blockIndex) => {
+    const weight = getDetailBlockWeight(block);
+    const remainingBlocks = blocks.length - blockIndex;
+    const remainingPages = resolvedPageCount - pageIndex;
+    const shouldAdvance =
+      pageIndex < resolvedPageCount - 1 &&
+      pages[pageIndex].length > 0 &&
+      (pageWeight + weight > capacities[pageIndex] || remainingBlocks === remainingPages);
+
+    if (shouldAdvance) {
+      pageIndex += 1;
+      pageWeight = 0;
+    }
+
+    pages[pageIndex].push(block);
+    pageWeight += weight;
+  });
+
+  return pages.filter((page) => page.length > 0);
+}
+
+function buildDetailedItemParts(item, itemNumber, imageLibrary, requestedParts) {
+  const images = imageLibrary[item.id] || [];
+  const detailBlocks = createDetailBlocks(item);
+  const parts = distributeDetailBlocks(detailBlocks, requestedParts, images.length, item.desc.length);
+  const useDedicatedEvidencePage = parts.length > 1 && images.length === 1;
+  const partTotal = parts.length + (useDedicatedEvidencePage ? 1 : 0);
+  const baseParts = parts.map((detailSections, index) => ({
+    kind: "detail",
+    item,
+    itemNumber,
+    detailPage: {
+      pageIndex: index + 1,
+      pageTotal: partTotal,
+      detailSections,
+      desc: index === 0 ? item.desc : "",
+      descLabel: index === 0 ? "內容摘要" : "續頁內容",
+      images: useDedicatedEvidencePage ? [] : index === 0 ? images : [],
+      showEvidence: !useDedicatedEvidencePage && index === 0 && images.length > 0,
+      evidenceOnly: false
+    }
+  }));
+
+  if (!useDedicatedEvidencePage) {
+    return baseParts;
+  }
+
+  return [
+    ...baseParts,
+    {
+      kind: "detail",
+      item,
+      itemNumber,
+      detailPage: {
+        pageIndex: partTotal,
+        pageTotal: partTotal,
+        detailSections: [],
+        desc: "",
+        descLabel: "佐證資料",
+        images,
+        showEvidence: true,
+        evidenceOnly: true
+      }
+    }
+  ];
+}
+
+function buildSectionParts(section, imageLibrary, splitOverrides = {}) {
   const parts = [];
   let briefItems = [];
 
-  section.items.forEach((item) => {
+  section.items.forEach((item, itemIndex) => {
+    const itemNumber = itemIndex + 1;
+
     if (hasDetailSections(item)) {
       if (briefItems.length) {
         parts.push(briefItems);
         briefItems = [];
       }
 
-      parts.push([item]);
+      parts.push(
+        ...buildDetailedItemParts(item, itemNumber, imageLibrary, splitOverrides[item.id] || 1)
+      );
       return;
     }
 
-    briefItems.push(item);
+    briefItems.push({
+      kind: "brief",
+      item,
+      itemNumber
+    });
 
     if (briefItems.length === ITEMS_PER_PAGE) {
       parts.push(briefItems);
@@ -755,10 +926,14 @@ function renderCoverPortraitPanel(headshot) {
   return panel;
 }
 
-function renderCoverPage(portfolio, coverImages, totalPages, pageNumber) {
+function renderCoverPage(portfolio, coverImages, totalPages, pageNumber, options = {}) {
   const footerText = `${portfolio.title}｜${portfolio.theme}`;
   const page = createPage(pageNumber, totalPages, footerText, "cover-page");
   page.dataset.exportLabel = "封面";
+
+  if (options.compact) {
+    page.classList.add("cover-page--compact");
+  }
 
   const header = document.createElement("header");
   header.className = "page-header";
@@ -892,8 +1067,13 @@ function renderImageGrid(images, options = {}) {
   return grid;
 }
 
-function renderItemCard(item, itemNumber, imageLibrary, section) {
-  const detailed = hasDetailSections(item);
+function renderItemCard(item, itemNumber, section, options = {}) {
+  const detailSections = options.detailSections || item.detailSections || [];
+  const detailed = detailSections.length > 0;
+  const images = options.images || [];
+  const showEvidence = options.showEvidence ?? (images.length > 0);
+  const descText = options.desc ?? item.desc;
+  const evidenceOnly = options.evidenceOnly === true;
   const article = document.createElement("article");
   article.className = detailed ? "item-card item-card--detailed" : "item-card";
   article.style.setProperty("--section-accent", section.accent);
@@ -912,58 +1092,86 @@ function renderItemCard(item, itemNumber, imageLibrary, section) {
 
   header.append(index, name);
 
-  const body = document.createElement("div");
-  body.className = detailed ? "item-body item-body--stacked" : "item-body";
-
-  const descSection = document.createElement("section");
-  descSection.className = "item-panel item-panel--text";
-  descSection.innerHTML = `
-    <p class="item-section-label">${detailed ? "內容摘要" : "內容說明"}</p>
-    <p class="item-desc">${item.desc}</p>
-  `;
-
-  if (detailed) {
-    const detailList = document.createElement("div");
-    detailList.className = "item-detail-list";
-
-    item.detailSections.forEach((sectionDetail) => {
-      const block = document.createElement("section");
-      block.className = "item-detail-block";
-
-      const heading = document.createElement("h4");
-      heading.className = "item-detail-heading";
-      heading.textContent = sectionDetail.heading;
-
-      block.appendChild(heading);
-
-      sectionDetail.paragraphs.forEach((paragraph) => {
-        const text = document.createElement("p");
-        text.className = "item-detail-paragraph";
-        text.textContent = paragraph;
-        block.appendChild(text);
-      });
-
-      detailList.appendChild(block);
-    });
-
-    descSection.appendChild(detailList);
+  if (options.continuationText) {
+    const continuation = document.createElement("p");
+    continuation.className = "item-meta-note";
+    continuation.textContent = options.continuationText;
+    header.appendChild(continuation);
   }
 
-  const imageSection = document.createElement("section");
-  imageSection.className = "item-panel item-panel--evidence";
+  const body = document.createElement("div");
+  if (evidenceOnly) {
+    body.className = "item-body item-body--text-only";
+  } else if (detailed) {
+    body.className = showEvidence ? "item-body item-body--stacked" : "item-body item-body--stacked item-body--text-only";
+  } else {
+    body.className = showEvidence ? "item-body" : "item-body item-body--text-only";
+  }
 
-  const imageLabel = document.createElement("p");
-  imageLabel.className = "item-section-label";
-  imageLabel.textContent = "佐證資料";
+  if (!evidenceOnly) {
+    const descSection = document.createElement("section");
+    descSection.className = "item-panel item-panel--text";
 
-  imageSection.append(imageLabel, renderImageGrid(imageLibrary[item.id] || [], { compact: detailed }));
-  body.append(descSection, imageSection);
+    const descLabel = document.createElement("p");
+    descLabel.className = "item-section-label";
+    descLabel.textContent = options.descLabel || (detailed ? "內容摘要" : "內容說明");
+    descSection.appendChild(descLabel);
+
+    if (descText) {
+      const descParagraph = document.createElement("p");
+      descParagraph.className = "item-desc";
+      descParagraph.textContent = descText;
+      descSection.appendChild(descParagraph);
+    }
+
+    if (detailed) {
+      const detailList = document.createElement("div");
+      detailList.className = "item-detail-list";
+
+      detailSections.forEach((sectionDetail) => {
+        const block = document.createElement("section");
+        block.className = "item-detail-block";
+
+        const heading = document.createElement("h4");
+        heading.className = "item-detail-heading";
+        heading.textContent = sectionDetail.heading;
+
+        block.appendChild(heading);
+
+        sectionDetail.paragraphs.forEach((paragraph) => {
+          const text = document.createElement("p");
+          text.className = "item-detail-paragraph";
+          text.textContent = paragraph;
+          block.appendChild(text);
+        });
+
+        detailList.appendChild(block);
+      });
+
+      descSection.appendChild(detailList);
+    }
+
+    body.appendChild(descSection);
+  }
+
+  if (showEvidence) {
+    const imageSection = document.createElement("section");
+    imageSection.className = "item-panel item-panel--evidence";
+
+    const imageLabel = document.createElement("p");
+    imageLabel.className = "item-section-label";
+    imageLabel.textContent = "佐證資料";
+
+    imageSection.append(imageLabel, renderImageGrid(images, { compact: detailed }));
+    body.appendChild(imageSection);
+  }
+
   article.append(header, body);
 
   return article;
 }
 
-function renderSectionPage(portfolio, section, items, partIndex, partTotal, totalPages, pageNumber, itemOffset, imageLibrary) {
+function renderSectionPage(portfolio, section, pageEntry, partIndex, partTotal, totalPages, pageNumber, imageLibrary) {
   const footerText = `${portfolio.title}｜${portfolio.theme}`;
   const page = createPage(pageNumber, totalPages, footerText, "section-page");
   page.style.setProperty("--section-accent", section.accent);
@@ -1001,9 +1209,33 @@ function renderSectionPage(portfolio, section, items, partIndex, partTotal, tota
   const itemList = document.createElement("div");
   itemList.className = "item-list";
 
-  items.forEach((item, index) => {
-    itemList.appendChild(renderItemCard(item, itemOffset + index + 1, imageLibrary, section));
-  });
+  if (Array.isArray(pageEntry)) {
+    pageEntry.forEach((entry) => {
+      itemList.appendChild(
+        renderItemCard(entry.item, entry.itemNumber, section, {
+          images: imageLibrary[entry.item.id] || [],
+          showEvidence: true
+        })
+      );
+    });
+  } else if (pageEntry.kind === "detail") {
+    page.classList.add("section-page--continued");
+    page.dataset.itemId = pageEntry.item.id;
+    itemList.appendChild(
+      renderItemCard(pageEntry.item, pageEntry.itemNumber, section, {
+        detailSections: pageEntry.detailPage.detailSections,
+        desc: pageEntry.detailPage.desc,
+        descLabel: pageEntry.detailPage.descLabel,
+        images: pageEntry.detailPage.images,
+        showEvidence: pageEntry.detailPage.showEvidence,
+        evidenceOnly: pageEntry.detailPage.evidenceOnly,
+        continuationText:
+          pageEntry.detailPage.pageTotal > 1
+            ? `項目第 ${pageEntry.detailPage.pageIndex} / ${pageEntry.detailPage.pageTotal} 頁`
+            : ""
+      })
+    );
+  }
 
   body.append(chapterBand, itemList);
 
@@ -1013,48 +1245,108 @@ function renderSectionPage(portfolio, section, items, partIndex, partTotal, tota
   return page;
 }
 
-function renderDocument(portfolio, imageData) {
+function renderDocument(portfolio, imageData, options = {}) {
   documentRootElement.innerHTML = "";
   currentPortfolio = portfolio;
   const imageLibrary = imageData.images || {};
   const coverImages = imageData.cover || {};
+  const detailPageOverrides = options.detailPageOverrides || {};
 
   const sectionChunks = portfolio.modules.map((section) => ({
     section,
-    parts: buildSectionParts(section)
+    parts: buildSectionParts(section, imageLibrary, detailPageOverrides)
   }));
 
   const totalPages = 1 + sectionChunks.reduce((sum, entry) => sum + entry.parts.length, 0);
   let pageNumber = 1;
 
-  documentRootElement.appendChild(renderCoverPage(portfolio, coverImages, totalPages, pageNumber));
+  documentRootElement.appendChild(
+    renderCoverPage(portfolio, coverImages, totalPages, pageNumber, {
+      compact: options.coverCompact
+    })
+  );
   pageNumber += 1;
 
   sectionChunks.forEach(({ section, parts }) => {
-    let itemOffset = 0;
-
-    parts.forEach((items, partIndex) => {
+    parts.forEach((pageEntry, partIndex) => {
       documentRootElement.appendChild(
         renderSectionPage(
           portfolio,
           section,
-          items,
+          pageEntry,
           partIndex + 1,
           parts.length,
           totalPages,
           pageNumber,
-          itemOffset,
           imageLibrary
         )
       );
 
-      itemOffset += items.length;
       pageNumber += 1;
     });
   });
 
   updateExportOptions();
   setExportStatus("可下載整份或指定頁面 PDF");
+}
+
+function collectLayoutAdjustmentsFromDiagnostics(diagnostics, adjustments) {
+  let changed = false;
+
+  diagnostics.forEach((issue) => {
+    const pageElement = documentRootElement.querySelector(`.a4-page[data-page-number="${issue.pageNumber}"]`);
+
+    if (!pageElement) {
+      return;
+    }
+
+    if (pageElement.classList.contains("cover-page")) {
+      if (!adjustments.coverCompact) {
+        adjustments.coverCompact = true;
+        changed = true;
+      }
+
+      return;
+    }
+
+    const itemId = pageElement.dataset.itemId;
+
+    if (!itemId) {
+      return;
+    }
+
+    const nextPageCount = (adjustments.detailPageOverrides[itemId] || 1) + 1;
+
+    if (nextPageCount !== adjustments.detailPageOverrides[itemId]) {
+      adjustments.detailPageOverrides[itemId] = nextPageCount;
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
+async function renderDocumentWithOverflowResolution(portfolio, imageData) {
+  const adjustments = {
+    coverCompact: false,
+    detailPageOverrides: {}
+  };
+
+  let diagnostics = [];
+
+  for (let iteration = 0; iteration < 8; iteration += 1) {
+    renderDocument(portfolio, imageData, adjustments);
+    diagnostics = await refreshLayoutDiagnostics();
+
+    const changed = collectLayoutAdjustmentsFromDiagnostics(diagnostics, adjustments);
+
+    if (!changed) {
+      return diagnostics;
+    }
+  }
+
+  renderDocument(portfolio, imageData, adjustments);
+  return refreshLayoutDiagnostics();
 }
 
 function renderError(message) {
@@ -1097,8 +1389,7 @@ async function bootstrap() {
       loadJson("images.json")
     ]);
 
-    renderDocument(contentData.portfolio, imageData);
-    await refreshLayoutDiagnostics();
+    await renderDocumentWithOverflowResolution(contentData.portfolio, imageData);
   } catch (error) {
     console.error(error);
     renderError(error.message);

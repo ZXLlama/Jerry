@@ -400,6 +400,87 @@ body {
   align-items: stretch;
 }
 
+.cover-page--compact .page-body {
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.cover-page--compact .cover-hero,
+.cover-page--compact .cover-aside,
+.cover-page--compact .cover-lower-grid {
+  gap: 10px;
+}
+
+.cover-page--compact .cover-main {
+  padding: 16px 20px 16px 24px;
+}
+
+.cover-page--compact .cover-label {
+  padding: 4px 10px;
+  font-size: 0.84rem;
+}
+
+.cover-page--compact .cover-title {
+  margin: 14px 0 4px;
+  font-size: clamp(1.96rem, 3.7vw, 2.56rem);
+}
+
+.cover-page--compact .cover-subtitle {
+  font-size: 0.94rem;
+  line-height: 1.62;
+}
+
+.cover-page--compact .cover-intro {
+  margin-top: 12px;
+  padding-top: 10px;
+  font-size: 0.9rem;
+  line-height: 1.68;
+}
+
+.cover-page--compact .panel-card,
+.cover-page--compact .highlight-panel,
+.cover-page--compact .competency-panel {
+  padding: 12px 14px;
+}
+
+.cover-page--compact .block-title {
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+.cover-page--compact .outline-item {
+  gap: 10px;
+  padding: 7px 0 8px;
+}
+
+.cover-page--compact .highlight-grid {
+  gap: 10px;
+}
+
+.cover-page--compact .highlight-card {
+  padding: 11px 11px 12px;
+}
+
+.cover-page--compact .highlight-title {
+  margin-top: 18px;
+  font-size: 1.16rem;
+  line-height: 1.34;
+}
+
+.cover-page--compact .competency-title {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+}
+
+.cover-page--compact .competency-list {
+  gap: 9px;
+}
+
+.cover-page--compact .competency-item {
+  gap: 6px;
+  padding: 7px 9px 8px;
+}
+
 .panel-card,
 .highlight-panel,
 .competency-panel,
@@ -819,6 +900,14 @@ body {
   line-break: strict;
 }
 
+.item-meta-note {
+  grid-column: 2;
+  margin: -2px 0 0;
+  color: var(--section-accent);
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+}
+
 .item-body {
   display: grid;
   grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
@@ -829,6 +918,10 @@ body {
 .item-body--stacked {
   grid-template-columns: 1fr;
   gap: 16px;
+}
+
+.item-body--text-only {
+  grid-template-columns: 1fr;
 }
 
 .item-panel {
