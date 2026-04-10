@@ -27,6 +27,17 @@
     </div>
   </div>
 
+  <div class="diagnostic-panel pdf-control" id="diagnostic-panel" hidden>
+    <div class="diagnostic-panel__inner">
+      <div class="diagnostic-panel__head">
+        <h2 class="diagnostic-title">PDF 匯出風險檢查</h2>
+        <button id="copy-layout-code" class="export-button" type="button">複製錯誤代碼</button>
+      </div>
+      <p id="diagnostic-summary" class="diagnostic-summary"></p>
+      <pre id="diagnostic-code" class="diagnostic-code"></pre>
+    </div>
+  </div>
+
   <main id="document-root" class="document-root" aria-live="polite">
     <section class="a4-page status-page">
       <div class="status-card">

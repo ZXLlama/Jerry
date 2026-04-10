@@ -2,15 +2,23 @@ const ITEMS_PER_PAGE = 2;
 const PDF_PAGE_WIDTH_PT = 595.28;
 const PDF_PAGE_HEIGHT_PT = 841.89;
 const EXPORT_RENDER_SCALE = Math.max(2, window.devicePixelRatio || 1);
+const A4_RATIO = 297 / 210;
+const A4_HEIGHT_TOLERANCE_PX = 6;
 
 const documentRootElement = document.getElementById("document-root");
 const downloadAllButtonElement = document.getElementById("download-all-pdf");
 const downloadPageButtonElement = document.getElementById("download-page-pdf");
 const downloadPageSelectElement = document.getElementById("download-page-select");
 const exportStatusElement = document.getElementById("export-status");
+const diagnosticPanelElement = document.getElementById("diagnostic-panel");
+const diagnosticSummaryElement = document.getElementById("diagnostic-summary");
+const diagnosticCodeElement = document.getElementById("diagnostic-code");
+const copyLayoutCodeButtonElement = document.getElementById("copy-layout-code");
 
 let exportInProgress = false;
 let currentPortfolio = null;
+let currentLayoutDiagnostics = [];
+let resizeDiagnosticTimer = 0;
 
 async function loadJson(path) {
   try {
@@ -173,6 +181,224 @@ function refreshExportControls() {
     exportInProgress ||
     !hasPages ||
     !downloadPageSelectElement.value;
+}
+
+function getExpectedPageHeightPx(pageElement) {
+  const rect = pageElement.getBoundingClientRect();
+  return rect.width * A4_RATIO;
+}
+
+function getPageItemLabels(pageElement) {
+  if (pageElement.classList.contains("cover-page")) {
+    return ["封面"];
+  }
+
+  const labels = Array.from(pageElement.querySelectorAll(".item-name"))
+    .map((node) => node.textContent?.trim())
+    .filter(Boolean);
+
+  if (labels.length) {
+    return labels;
+  }
+
+  const pageNumber = Number(pageElement.dataset.pageNumber || "1");
+  return [getPageExportLabel(pageElement, Math.max(0, pageNumber - 1))];
+}
+
+function buildLayoutDiagnostics(pageElements = getDocumentPages()) {
+  return pageElements
+    .map((pageElement, pageIndex) => {
+      const pageNumber = Number(pageElement.dataset.pageNumber || pageIndex + 1);
+      const actualHeightPx = Math.round(pageElement.getBoundingClientRect().height);
+      const expectedHeightPx = Math.round(getExpectedPageHeightPx(pageElement));
+      const overflowPx = actualHeightPx - expectedHeightPx;
+
+      if (overflowPx <= A4_HEIGHT_TOLERANCE_PX) {
+        return null;
+      }
+
+      const pageLabel = getPageExportLabel(pageElement, pageNumber - 1);
+      const itemLabels = getPageItemLabels(pageElement);
+
+      return {
+        pageNumber,
+        pageLabel,
+        itemLabels,
+        expectedHeightPx,
+        actualHeightPx,
+        overflowPx,
+        overflowRatio: Number((actualHeightPx / expectedHeightPx).toFixed(4)),
+        code: `E-A4-HEIGHT-OVERFLOW-P${String(pageNumber).padStart(2, "0")}`,
+        type: "a4_height_overflow",
+        cause: "page_content_exceeds_a4_height",
+        effect: "pdf_page_will_be_vertically_compressed"
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildLayoutDiagnosticPayload(diagnostics) {
+  return JSON.stringify(
+    {
+      version: "PORTFOLIO_LAYOUT_WARN_V1",
+      document: getDocumentBaseName(),
+      issueCount: diagnostics.length,
+      issues: diagnostics.map((issue) => ({
+        page: issue.pageNumber,
+        code: issue.code,
+        type: issue.type,
+        label: issue.pageLabel,
+        items: issue.itemLabels,
+        expectedHeightPx: issue.expectedHeightPx,
+        actualHeightPx: issue.actualHeightPx,
+        overflowPx: issue.overflowPx,
+        overflowRatio: issue.overflowRatio,
+        cause: issue.cause,
+        effect: issue.effect
+      }))
+    },
+    null,
+    2
+  );
+}
+
+function clearPageLayoutWarnings() {
+  getDocumentPages().forEach((pageElement) => {
+    pageElement.removeAttribute("data-layout-warning");
+    pageElement.removeAttribute("data-warning-code");
+    pageElement.querySelector(".page-layout-warning")?.remove();
+  });
+}
+
+function renderPageLayoutWarnings(diagnostics) {
+  clearPageLayoutWarnings();
+
+  const pageMap = new Map(getDocumentPages().map((pageElement) => [Number(pageElement.dataset.pageNumber), pageElement]));
+
+  diagnostics.forEach((diagnostic) => {
+    const pageElement = pageMap.get(diagnostic.pageNumber);
+
+    if (!pageElement) {
+      return;
+    }
+
+    pageElement.dataset.layoutWarning = "true";
+    pageElement.dataset.warningCode = diagnostic.code;
+
+    const warning = document.createElement("aside");
+    warning.className = "page-layout-warning pdf-control";
+    warning.setAttribute("role", "note");
+    warning.title = `${diagnostic.code}：此頁實際高度超出 A4 ${diagnostic.overflowPx}px，若直接匯出 PDF 會被壓扁。`;
+    warning.innerHTML = `
+      <span class="page-layout-warning__label">PDF 匯出警告</span>
+      <strong class="page-layout-warning__code">${diagnostic.code}</strong>
+      <span class="page-layout-warning__meta">高度超出 A4 ${diagnostic.overflowPx}px</span>
+    `;
+
+    pageElement.appendChild(warning);
+  });
+}
+
+function renderLayoutDiagnostics(diagnostics) {
+  currentLayoutDiagnostics = diagnostics;
+  renderPageLayoutWarnings(diagnostics);
+
+  if (!diagnosticPanelElement || !diagnosticSummaryElement || !diagnosticCodeElement || !copyLayoutCodeButtonElement) {
+    return;
+  }
+
+  if (!diagnostics.length) {
+    diagnosticPanelElement.hidden = true;
+    diagnosticSummaryElement.textContent = "";
+    diagnosticCodeElement.textContent = "";
+    copyLayoutCodeButtonElement.disabled = true;
+    return;
+  }
+
+  diagnosticPanelElement.hidden = false;
+  copyLayoutCodeButtonElement.disabled = false;
+
+  const pageList = diagnostics.map((issue) => issue.pageNumber).join("、");
+  diagnosticSummaryElement.textContent =
+    `下列頁面實際高度已超出 A4：${pageList}。若直接匯出，整頁會被垂直壓縮。請先縮短內容或調整排版；也可將下方錯誤代碼交給 Codex 修正。`;
+  diagnosticCodeElement.textContent = buildLayoutDiagnosticPayload(diagnostics);
+}
+
+async function waitForLayoutStability() {
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+
+  await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+}
+
+async function refreshLayoutDiagnostics() {
+  if (!currentPortfolio) {
+    renderLayoutDiagnostics([]);
+    return [];
+  }
+
+  await waitForLayoutStability();
+  const diagnostics = buildLayoutDiagnostics(getDocumentPages());
+  renderLayoutDiagnostics(diagnostics);
+  return diagnostics;
+}
+
+function getDiagnosticsForPages(pageElements, diagnostics = currentLayoutDiagnostics) {
+  const pageNumbers = new Set(
+    pageElements
+      .map((pageElement) => Number(pageElement.dataset.pageNumber))
+      .filter((pageNumber) => Number.isFinite(pageNumber))
+  );
+
+  return diagnostics.filter((issue) => pageNumbers.has(issue.pageNumber));
+}
+
+function focusDiagnosticPanel() {
+  if (!diagnosticPanelElement?.hidden) {
+    diagnosticPanelElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
+
+  const firstWarningPage = documentRootElement.querySelector('.a4-page[data-layout-warning="true"]');
+  firstWarningPage?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function copyDiagnosticCode() {
+  const text = diagnosticCodeElement?.textContent?.trim();
+
+  if (!text) {
+    setExportStatus("目前沒有可複製的版面錯誤代碼", "");
+    return;
+  }
+
+  try {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      helper.setAttribute("readonly", "readonly");
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      document.execCommand("copy");
+      helper.remove();
+    }
+
+    setExportStatus("已複製版面錯誤代碼", "success");
+  } catch (error) {
+    console.error(error);
+    setExportStatus("錯誤代碼複製失敗，請手動複製下方內容", "error");
+  }
+}
+
+function scheduleLayoutDiagnosticRefresh() {
+  window.clearTimeout(resizeDiagnosticTimer);
+  resizeDiagnosticTimer = window.setTimeout(() => {
+    refreshLayoutDiagnostics().catch((error) => console.error(error));
+  }, 180);
 }
 
 function updateExportOptions() {
@@ -363,6 +589,19 @@ function appendCanvasToPdf(pdf, canvas, pageIndex) {
 }
 
 async function exportPagesToPdf(pageElements, filename, label) {
+  const diagnostics = await refreshLayoutDiagnostics();
+  const blockingIssues = getDiagnosticsForPages(pageElements, diagnostics);
+
+  if (blockingIssues.length) {
+    const pageList = blockingIssues.map((issue) => issue.pageNumber).join("、");
+    setExportStatus(
+      `${label}已停止：第 ${pageList} 頁高度超出 A4，直接匯出會被壓扁。請先修正頁面內容，或將錯誤代碼提供給 Codex。`,
+      "error"
+    );
+    focusDiagnosticPanel();
+    return;
+  }
+
   exportInProgress = true;
   refreshExportControls();
 
@@ -836,6 +1075,7 @@ function renderError(message) {
   page.appendChild(card);
   documentRootElement.appendChild(page);
   updateExportOptions();
+  renderLayoutDiagnostics([]);
   setExportStatus("內容載入失敗，無法匯出 PDF", "error");
 }
 
@@ -843,6 +1083,11 @@ function bindExportEvents() {
   downloadAllButtonElement.addEventListener("click", handleExportAllPdf);
   downloadPageButtonElement.addEventListener("click", handleExportSinglePagePdf);
   downloadPageSelectElement.addEventListener("change", refreshExportControls);
+  copyLayoutCodeButtonElement?.addEventListener("click", copyDiagnosticCode);
+  window.addEventListener("resize", scheduleLayoutDiagnosticRefresh);
+  window.addEventListener("load", () => {
+    refreshLayoutDiagnostics().catch((error) => console.error(error));
+  });
 }
 
 async function bootstrap() {
@@ -853,6 +1098,7 @@ async function bootstrap() {
     ]);
 
     renderDocument(contentData.portfolio, imageData);
+    await refreshLayoutDiagnostics();
   } catch (error) {
     console.error(error);
     renderError(error.message);
