@@ -535,9 +535,9 @@ body {
   min-height: 0;
   height: 100%;
   padding: 16px 16px 18px;
-  border: 1px solid color-mix(in srgb, var(--highlight-color) 18%, white);
+  border: 1px solid rgba(24, 58, 87, 0.12);
   background:
-    linear-gradient(160deg, color-mix(in srgb, var(--highlight-color) 8%, white), rgba(255, 255, 255, 0) 56%),
+    linear-gradient(160deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0) 56%),
     #fff;
 }
 
@@ -560,7 +560,7 @@ body {
 
 .highlight-note {
   margin: 0;
-  color: color-mix(in srgb, var(--highlight-color) 78%, #233447);
+  color: var(--highlight-color);
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -623,7 +623,8 @@ body {
   font-family: "Noto Serif TC", "PMingLiU", serif;
   font-size: 3.9rem;
   line-height: 1;
-  color: color-mix(in srgb, var(--section-accent) 18%, white);
+  color: var(--section-accent);
+  opacity: 0.18;
 }
 
 .chapter-label {
@@ -705,7 +706,7 @@ body {
   min-width: 42px;
   min-height: 42px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--section-accent) 16%, white);
+  border: 1px solid rgba(24, 58, 87, 0.12);
   background: var(--section-soft);
   font-family: "Noto Serif TC", "PMingLiU", serif;
   font-size: 1.28rem;

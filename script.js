@@ -10,9 +10,7 @@ const downloadPageSelectElement = document.getElementById("download-page-select"
 const exportStatusElement = document.getElementById("export-status");
 
 const textEncoder = new TextEncoder();
-const resourceDataUrlCache = new Map();
 
-let exportStylesheetTextPromise;
 let exportInProgress = false;
 let currentPortfolio = null;
 
@@ -261,113 +259,6 @@ async function waitForPageAssets(pageElement) {
   await Promise.all(images.map((image) => waitForImageLoad(image)));
 }
 
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("圖片轉換失敗"));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function getResourceDataUrl(url) {
-  if (!url) {
-    return "";
-  }
-
-  if (url.startsWith("data:")) {
-    return url;
-  }
-
-  const absoluteUrl = new URL(url, window.location.href).href;
-
-  if (!resourceDataUrlCache.has(absoluteUrl)) {
-    const pending = fetch(absoluteUrl, { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        return response.blob();
-      })
-      .then((blob) => blobToDataUrl(blob));
-
-    resourceDataUrlCache.set(absoluteUrl, pending);
-  }
-
-  return resourceDataUrlCache.get(absoluteUrl);
-}
-
-function imageElementToDataUrl(imageElement) {
-  const canvas = document.createElement("canvas");
-  canvas.width = imageElement.naturalWidth;
-  canvas.height = imageElement.naturalHeight;
-
-  const context = canvas.getContext("2d");
-  context.drawImage(imageElement, 0, 0);
-
-  return canvas.toDataURL("image/png");
-}
-
-async function inlineCloneImages(clone, sourcePage) {
-  const cloneImages = Array.from(clone.querySelectorAll("img"));
-  const sourceImages = Array.from(sourcePage.querySelectorAll("img"));
-
-  await Promise.all(cloneImages.map(async (image, index) => {
-    const sourceImage = sourceImages[index];
-    const sourceUrl = sourceImage?.currentSrc || sourceImage?.src || image.getAttribute("src");
-
-    if (!sourceUrl) {
-      return;
-    }
-
-    try {
-      image.src = await getResourceDataUrl(sourceUrl);
-    } catch (error) {
-      try {
-        image.src = imageElementToDataUrl(sourceImage);
-      } catch (fallbackError) {
-        image.src = sourceUrl;
-      }
-    }
-
-    image.removeAttribute("loading");
-    image.removeAttribute("srcset");
-    image.setAttribute("decoding", "sync");
-  }));
-}
-
-async function getExportStylesheetText() {
-  if (!exportStylesheetTextPromise) {
-    exportStylesheetTextPromise = Promise.resolve(
-      Array.from(document.styleSheets)
-        .map((sheet) => {
-          try {
-            return Array.from(sheet.cssRules)
-              .map((rule) => rule.cssText)
-              .join("\n");
-          } catch (error) {
-            return "";
-          }
-        })
-        .filter(Boolean)
-        .join("\n")
-    );
-  }
-
-  return exportStylesheetTextPromise;
-}
-
-function loadImageElement(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.decoding = "sync";
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("頁面匯出失敗"));
-    image.src = src;
-  });
-}
-
 function concatUint8Arrays(parts) {
   const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
   const merged = new Uint8Array(totalLength);
@@ -384,76 +275,41 @@ function concatUint8Arrays(parts) {
 async function renderPageToCanvas(pageElement) {
   await waitForPageAssets(pageElement);
 
+  if (typeof window.html2canvas !== "function") {
+    throw new Error("PDF 匯出元件載入失敗，請重新整理後再試。");
+  }
+
   const rect = pageElement.getBoundingClientRect();
   const width = Math.ceil(rect.width);
   const height = Math.ceil(rect.height);
-  const clone = pageElement.cloneNode(true);
 
-  clone.querySelectorAll(".pdf-control").forEach((node) => node.remove());
-  clone.style.width = `${width}px`;
-  clone.style.minWidth = `${width}px`;
-  clone.style.minHeight = `${height}px`;
-  clone.style.margin = "0";
-  clone.style.boxShadow = "none";
+  return window.html2canvas(pageElement, {
+    backgroundColor: "#ffffff",
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    scale: EXPORT_RENDER_SCALE,
+    width,
+    height,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    onclone: (clonedDocument) => {
+      clonedDocument.querySelectorAll(".pdf-control").forEach((node) => node.remove());
 
-  await inlineCloneImages(clone, pageElement);
+      const pageNumber = pageElement.dataset.pageNumber;
+      const clonedPage = clonedDocument.querySelector(`.a4-page[data-page-number="${pageNumber}"]`);
 
-  const stylesheetText = await getExportStylesheetText();
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  svg.setAttribute("width", String(width));
-  svg.setAttribute("height", String(height));
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      if (clonedPage) {
+        clonedPage.style.width = `${width}px`;
+        clonedPage.style.minWidth = `${width}px`;
+        clonedPage.style.minHeight = `${height}px`;
+        clonedPage.style.margin = "0";
+        clonedPage.style.boxShadow = "none";
+      }
 
-  const foreignObject = document.createElementNS("http://www.w3.org/2000/svg", "foreignObject");
-  foreignObject.setAttribute("width", "100%");
-  foreignObject.setAttribute("height", "100%");
-
-  const shell = document.createElement("div");
-  shell.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
-  shell.style.width = `${width}px`;
-  shell.style.height = `${height}px`;
-  shell.style.background = "#fff";
-
-  const style = document.createElement("style");
-  style.textContent = `
-    ${stylesheetText}
-    .pdf-control { display: none !important; }
-    .document-root { padding: 0 !important; gap: 0 !important; }
-    body { margin: 0 !important; background: #fff !important; }
-    .a4-page {
-      width: ${width}px !important;
-      min-width: ${width}px !important;
-      min-height: ${height}px !important;
-      margin: 0 !important;
-      box-shadow: none !important;
+      clonedDocument.body.style.background = "#ffffff";
     }
-  `;
-
-  shell.append(style, clone);
-  foreignObject.appendChild(shell);
-  svg.appendChild(foreignObject);
-
-  const serialized = new XMLSerializer().serializeToString(svg);
-  const svgBlob = new Blob([serialized], { type: "image/svg+xml;charset=utf-8" });
-  const svgUrl = URL.createObjectURL(svgBlob);
-
-  try {
-    const image = await loadImageElement(svgUrl);
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(width * EXPORT_RENDER_SCALE);
-    canvas.height = Math.round(height * EXPORT_RENDER_SCALE);
-
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.setTransform(EXPORT_RENDER_SCALE, 0, 0, EXPORT_RENDER_SCALE, 0, 0);
-    context.drawImage(image, 0, 0, width, height);
-
-    return canvas;
-  } finally {
-    URL.revokeObjectURL(svgUrl);
-  }
+  });
 }
 
 function canvasToJpegBytes(canvas) {
