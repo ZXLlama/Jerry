@@ -9,8 +9,6 @@ const downloadPageButtonElement = document.getElementById("download-page-pdf");
 const downloadPageSelectElement = document.getElementById("download-page-select");
 const exportStatusElement = document.getElementById("export-status");
 
-const textEncoder = new TextEncoder();
-
 let exportInProgress = false;
 let currentPortfolio = null;
 
@@ -259,19 +257,6 @@ async function waitForPageAssets(pageElement) {
   await Promise.all(images.map((image) => waitForImageLoad(image)));
 }
 
-function concatUint8Arrays(parts) {
-  const totalLength = parts.reduce((sum, part) => sum + part.length, 0);
-  const merged = new Uint8Array(totalLength);
-  let offset = 0;
-
-  parts.forEach((part) => {
-    merged.set(part, offset);
-    offset += part.length;
-  });
-
-  return merged;
-}
-
 async function renderPageToCanvas(pageElement) {
   await waitForPageAssets(pageElement);
 
@@ -312,93 +297,28 @@ async function renderPageToCanvas(pageElement) {
   });
 }
 
-function canvasToJpegBytes(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        reject(new Error("PDF 轉換失敗"));
-        return;
-      }
+function createPdfDocument() {
+  const jsPdfConstructor = window.jspdf?.jsPDF;
 
-      const buffer = await blob.arrayBuffer();
-      resolve({
-        bytes: new Uint8Array(buffer),
-        width: canvas.width,
-        height: canvas.height
-      });
-    }, "image/jpeg", 0.96);
+  if (typeof jsPdfConstructor !== "function") {
+    throw new Error("PDF 匯出元件載入失敗，請重新整理後再試。");
+  }
+
+  return new jsPdfConstructor({
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4",
+    compress: true
   });
 }
 
-function toPdfNumber(value) {
-  return Number(value.toFixed(2)).toString();
-}
-
-function buildPdfBlob(pageImages) {
-  const objectCount = 2 + pageImages.length * 3;
-  const objects = new Array(objectCount + 1);
-  const pageRefs = [];
-
-  let objectIndex = 3;
-
-  pageImages.forEach((pageImage, index) => {
-    const pageObjectNumber = objectIndex;
-    const contentObjectNumber = objectIndex + 1;
-    const imageObjectNumber = objectIndex + 2;
-    const imageName = `Im${index + 1}`;
-    const contentStream = textEncoder.encode(
-      `q\n${toPdfNumber(PDF_PAGE_WIDTH_PT)} 0 0 ${toPdfNumber(PDF_PAGE_HEIGHT_PT)} 0 0 cm\n/${imageName} Do\nQ`
-    );
-
-    pageRefs.push(`${pageObjectNumber} 0 R`);
-
-    objects[pageObjectNumber] = textEncoder.encode(
-      `${pageObjectNumber} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${toPdfNumber(PDF_PAGE_WIDTH_PT)} ${toPdfNumber(PDF_PAGE_HEIGHT_PT)}] /Resources << /XObject << /${imageName} ${imageObjectNumber} 0 R >> >> >> /Contents ${contentObjectNumber} 0 R >>\nendobj\n`
-    );
-
-    objects[contentObjectNumber] = concatUint8Arrays([
-      textEncoder.encode(`${contentObjectNumber} 0 obj\n<< /Length ${contentStream.length} >>\nstream\n`),
-      contentStream,
-      textEncoder.encode(`\nendstream\nendobj\n`)
-    ]);
-
-    objects[imageObjectNumber] = concatUint8Arrays([
-      textEncoder.encode(`${imageObjectNumber} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${pageImage.width} /Height ${pageImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pageImage.bytes.length} >>\nstream\n`),
-      pageImage.bytes,
-      textEncoder.encode(`\nendstream\nendobj\n`)
-    ]);
-
-    objectIndex += 3;
-  });
-
-  objects[1] = textEncoder.encode(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
-  objects[2] = textEncoder.encode(`2 0 obj\n<< /Type /Pages /Count ${pageImages.length} /Kids [${pageRefs.join(" ")}] >>\nendobj\n`);
-
-  const header = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52, 10, 37, 226, 227, 207, 211, 10]);
-  const parts = [header];
-  const offsets = new Array(objectCount + 1).fill(0);
-  let offset = header.length;
-
-  for (let index = 1; index <= objectCount; index += 1) {
-    offsets[index] = offset;
-    parts.push(objects[index]);
-    offset += objects[index].length;
+function appendCanvasToPdf(pdf, canvas, pageIndex) {
+  if (pageIndex > 0) {
+    pdf.addPage("a4", "portrait");
   }
 
-  const xrefOffset = offset;
-  const xrefLines = [
-    `xref\n0 ${objectCount + 1}\n`,
-    "0000000000 65535 f \n"
-  ];
-
-  for (let index = 1; index <= objectCount; index += 1) {
-    xrefLines.push(`${String(offsets[index]).padStart(10, "0")} 00000 n \n`);
-  }
-
-  const trailer = `trailer\n<< /Size ${objectCount + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return new Blob([...parts, textEncoder.encode(`${xrefLines.join("")}${trailer}`)], {
-    type: "application/pdf"
-  });
+  const imageData = canvas.toDataURL("image/jpeg", 0.96);
+  pdf.addImage(imageData, "JPEG", 0, 0, PDF_PAGE_WIDTH_PT, PDF_PAGE_HEIGHT_PT, undefined, "FAST");
 }
 
 async function exportPagesToPdf(pageElements, filename, label) {
@@ -406,19 +326,18 @@ async function exportPagesToPdf(pageElements, filename, label) {
   refreshExportControls();
 
   try {
-    const pageImages = [];
+    const pdf = createPdfDocument();
 
     for (let index = 0; index < pageElements.length; index += 1) {
       setExportStatus(`${label}：正在處理第 ${index + 1} / ${pageElements.length} 頁`, "");
 
       const canvas = await renderPageToCanvas(pageElements[index]);
-      const pageImage = await canvasToJpegBytes(canvas);
-      pageImages.push(pageImage);
+      appendCanvasToPdf(pdf, canvas, index);
       canvas.width = 0;
       canvas.height = 0;
     }
 
-    const pdfBlob = buildPdfBlob(pageImages);
+    const pdfBlob = pdf.output("blob");
     triggerFileDownload(pdfBlob, filename);
     setExportStatus(`${label}：已開始下載`, "success");
   } catch (error) {
