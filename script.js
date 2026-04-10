@@ -292,6 +292,47 @@ async function renderPageToCanvas(pageElement) {
         clonedPage.style.boxShadow = "none";
       }
 
+      const sourceFrames = Array.from(pageElement.querySelectorAll(".cover-photo-frame, .image-frame"));
+      const clonedFrames = Array.from(clonedDocument.querySelectorAll(`.a4-page[data-page-number="${pageNumber}"] .cover-photo-frame, .a4-page[data-page-number="${pageNumber}"] .image-frame`));
+
+      sourceFrames.forEach((sourceFrame, index) => {
+        const clonedFrame = clonedFrames[index];
+
+        if (!clonedFrame) {
+          return;
+        }
+
+        const frameRect = sourceFrame.getBoundingClientRect();
+        const sourceImage = sourceFrame.querySelector("img");
+        const clonedImage = clonedFrame.querySelector("img");
+
+        clonedFrame.style.width = `${frameRect.width}px`;
+        clonedFrame.style.height = `${frameRect.height}px`;
+        clonedFrame.style.minWidth = `${frameRect.width}px`;
+        clonedFrame.style.minHeight = `${frameRect.height}px`;
+        clonedFrame.style.overflow = "hidden";
+
+        if (!sourceImage || !clonedImage) {
+          return;
+        }
+
+        const computedStyle = window.getComputedStyle(sourceImage);
+        const imageUrl = sourceImage.currentSrc || sourceImage.src;
+
+        clonedFrame.style.backgroundImage = `url("${imageUrl}")`;
+        clonedFrame.style.backgroundRepeat = "no-repeat";
+        clonedFrame.style.backgroundPosition = computedStyle.objectPosition || "center center";
+        clonedFrame.style.backgroundSize = computedStyle.objectFit === "contain" ? "contain" : "cover";
+
+        clonedImage.style.opacity = "0";
+        clonedImage.style.width = `${frameRect.width}px`;
+        clonedImage.style.height = `${frameRect.height}px`;
+        clonedImage.style.minWidth = `${frameRect.width}px`;
+        clonedImage.style.minHeight = `${frameRect.height}px`;
+        clonedImage.style.objectFit = computedStyle.objectFit || "cover";
+        clonedImage.style.objectPosition = computedStyle.objectPosition || "center center";
+      });
+
       clonedDocument.body.style.background = "#ffffff";
     }
   });
