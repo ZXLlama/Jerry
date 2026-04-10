@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>黃煥傑｜多元表現</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="export-toolbar pdf-control" id="export-toolbar">
+    <div class="export-panel">
+      <div class="export-group">
+        <button id="download-all-pdf" class="export-button export-button--primary" type="button">
+          下載整份 PDF
+        </button>
+      </div>
+      <div class="export-group export-group--page">
+        <label class="export-label" for="download-page-select">單頁下載</label>
+        <select id="download-page-select" class="export-select" aria-label="選擇頁面">
+          <option value="">請先載入內容</option>
+        </select>
+        <button id="download-page-pdf" class="export-button" type="button" disabled>
+          下載所選頁面 PDF
+        </button>
+      </div>
+      <p id="export-status" class="export-status" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <main id="document-root" class="document-root" aria-live="polite">
+    <section class="a4-page status-page">
+      <div class="status-card">
+        <p class="status-title">多元表現內容載入中</p>
+        <p class="status-text">正在整理封面、主題內容與圖片附件。</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

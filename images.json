@@ -1,0 +1,166 @@
+{
+  "cover": {
+    "headshot": {
+      "src": "img/24 黃煥傑 個人照.JPG",
+      "alt": "黃煥傑個人照片"
+    }
+  },
+  "images": {
+    "canada-study-tour": [
+      {
+        "src": "img/canada-study-tour-1.svg",
+        "alt": "加拿大遊學圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/canada-study-tour-2.svg",
+        "alt": "加拿大遊學圖片佔位 2",
+        "label": "圖片 2"
+      },
+      {
+        "src": "img/canada-study-tour-3.svg",
+        "alt": "加拿大遊學圖片佔位 3",
+        "label": "圖片 3"
+      }
+    ],
+    "self-learning-global-english": [
+      {
+        "src": "img/self-learning-global-english-1.svg",
+        "alt": "自主學習一圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/self-learning-global-english-2.svg",
+        "alt": "自主學習一圖片佔位 2",
+        "label": "圖片 2"
+      },
+      {
+        "src": "img/self-learning-global-english-3.svg",
+        "alt": "自主學習一圖片佔位 3",
+        "label": "圖片 3"
+      }
+    ],
+    "self-learning-rigid-body": [
+      {
+        "src": "img/self-learning-rigid-body-1.svg",
+        "alt": "自主學習二圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/self-learning-rigid-body-2.svg",
+        "alt": "自主學習二圖片佔位 2",
+        "label": "圖片 2"
+      }
+    ],
+    "gept": [
+      {
+        "src": "img/gept-1.svg",
+        "alt": "GEPT 圖片佔位 1",
+        "label": "圖片 1"
+      }
+    ],
+    "toeic": [
+      {
+        "src": "img/toeic-1.svg",
+        "alt": "TOEIC 圖片佔位 1",
+        "label": "圖片 1"
+      }
+    ],
+    "science-project-presentation": [
+      {
+        "src": "img/science-project-presentation-1.svg",
+        "alt": "自然科學專題探究成果發表圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/science-project-presentation-2.svg",
+        "alt": "自然科學專題探究成果發表圖片佔位 2",
+        "label": "圖片 2"
+      },
+      {
+        "src": "img/science-project-presentation-3.svg",
+        "alt": "自然科學專題探究成果發表圖片佔位 3",
+        "label": "圖片 3"
+      }
+    ],
+    "math-competition-collection": [
+      {
+        "src": "img/math-competition-collection-1.svg",
+        "alt": "數理競賽合輯圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/math-competition-collection-2.svg",
+        "alt": "數理競賽合輯圖片佔位 2",
+        "label": "圖片 2"
+      },
+      {
+        "src": "img/math-competition-collection-3.svg",
+        "alt": "數理競賽合輯圖片佔位 3",
+        "label": "圖片 3"
+      },
+      {
+        "src": "img/math-competition-collection-4.svg",
+        "alt": "數理競賽合輯圖片佔位 4",
+        "label": "圖片 4"
+      }
+    ],
+    "kangaroo-math": [
+      {
+        "src": "img/kangaroo-math-1.svg",
+        "alt": "袋鼠盃圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/kangaroo-math-2.svg",
+        "alt": "袋鼠盃圖片佔位 2",
+        "label": "圖片 2"
+      }
+    ],
+    "english-debate": [
+      {
+        "src": "img/english-debate-1.svg",
+        "alt": "英文辯論圖片佔位 1",
+        "label": "圖片 1"
+      }
+    ],
+    "north-district-writing": [
+      {
+        "src": "img/north-district-writing-1.svg",
+        "alt": "北二區英文作文圖片佔位 1",
+        "label": "圖片 1"
+      }
+    ],
+    "ironman-creativity": [
+      {
+        "src": "img/ironman-creativity-1.svg",
+        "alt": "智慧鐵人圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/ironman-creativity-2.svg",
+        "alt": "智慧鐵人圖片佔位 2",
+        "label": "圖片 2"
+      }
+    ],
+    "basketball-division-b": [
+      {
+        "src": "img/basketball-division-b-1.svg",
+        "alt": "籃球乙組聯賽圖片佔位 1",
+        "label": "圖片 1"
+      },
+      {
+        "src": "img/basketball-division-b-2.svg",
+        "alt": "籃球乙組聯賽圖片佔位 2",
+        "label": "圖片 2"
+      }
+    ],
+    "basketball-3v3": [
+      {
+        "src": "img/basketball-3v3-1.svg",
+        "alt": "3v3 籃球比賽圖片佔位 1",
+        "label": "圖片 1"
+      }
+    ]
+  }
+}
