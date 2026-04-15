@@ -595,13 +595,6 @@ function renderStoryHero(module, itemPage) {
   );
 
   hero.append(meta, serial, content);
-
-  if (itemPage.pageTotal > 1) {
-    hero.appendChild(
-      renderText("p", "story-hero__note", `續頁 ${itemPage.pageIndex} / ${itemPage.pageTotal}`)
-    );
-  }
-
   return hero;
 }
 
@@ -614,7 +607,7 @@ function renderImageFrame(image, modifier = "") {
   picture.alt = image.alt || image.label || "佐證圖片";
   picture.loading = "lazy";
 
-  const caption = renderText("figcaption", "image-frame__caption", image.label || "證據");
+  const caption = renderText("figcaption", "image-frame__caption", image.label || "圖像");
   frame.append(picture, caption);
   return frame;
 }
@@ -636,17 +629,18 @@ function renderEvidenceGallery(images, title, prominent = false) {
   return section;
 }
 
-function renderStoryRows(detailBlocks, images) {
+function renderStoryRows(item, detailBlocks, images) {
   const section = document.createElement("section");
   section.className = "story-list";
+  const galleryTitle = item.galleryTitle || item.eyebrow || item.title;
 
   if (!detailBlocks.length) {
     section.classList.add("story-list--evidence-only");
-    section.appendChild(renderEvidenceGallery(images, "佐證圖片", true));
+    if (images.length) {
+      section.appendChild(renderEvidenceGallery(images, galleryTitle, true));
+    }
     return section;
   }
-
-  let imageCursor = 0;
 
   detailBlocks.forEach((block) => {
     const row = document.createElement("article");
@@ -661,24 +655,13 @@ function renderStoryRows(detailBlocks, images) {
     });
 
     row.appendChild(text);
-
-    if (images[imageCursor]) {
-      const figureWrap = document.createElement("div");
-      figureWrap.className = "story-row__figure";
-      figureWrap.appendChild(renderImageFrame(images[imageCursor]));
-      row.appendChild(figureWrap);
-      imageCursor += 1;
-    } else {
-      row.classList.add("is-text-only");
-    }
-
     section.appendChild(row);
   });
 
-  const remainingImages = images.slice(imageCursor);
-
-  if (remainingImages.length) {
-    section.appendChild(renderEvidenceGallery(remainingImages, "補充佐證"));
+  if (images.length) {
+    section.appendChild(
+      renderEvidenceGallery(images, galleryTitle, !detailBlocks.length && images.length === 1)
+    );
   }
 
   return section;
@@ -709,7 +692,7 @@ function renderStoryPage(portfolio, module, itemPage, totalPages, pageNumber) {
   shell.body.append(
     renderModuleStrip(portfolio.modules, module.id),
     renderStoryHero(module, itemPage),
-    renderStoryRows(itemPage.detailBlocks, itemPage.images)
+    renderStoryRows(itemPage.item, itemPage.detailBlocks, itemPage.images)
   );
 
   return shell.page;

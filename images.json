@@ -10,75 +10,75 @@
       {
         "src": "img/science-project-presentation-1.svg",
         "alt": "手持風扇降溫變因分析佐證 1",
-        "label": "證據 01"
+        "label": "實驗裝置"
       },
       {
         "src": "img/science-project-presentation-2.svg",
         "alt": "手持風扇降溫變因分析佐證 2",
-        "label": "證據 02"
+        "label": "變因比較"
       },
       {
         "src": "img/science-project-presentation-3.svg",
         "alt": "手持風扇降溫變因分析佐證 3",
-        "label": "證據 03"
+        "label": "成果展示"
       }
     ],
     "ironman-creativity": [
       {
         "src": "img/ironman-creativity-1.svg",
         "alt": "智慧鐵人創意競賽佐證 1",
-        "label": "證據 01"
+        "label": "任務實作"
       },
       {
         "src": "img/ironman-creativity-2.svg",
         "alt": "智慧鐵人創意競賽佐證 2",
-        "label": "證據 02"
+        "label": "競賽紀錄"
       }
     ],
     "applied-mechanics-course": [
       {
         "src": "img/self-learning-rigid-body-1.svg",
         "alt": "清大應用力學線上課程佐證 1",
-        "label": "證據 01"
+        "label": "課程筆記"
       },
       {
         "src": "img/self-learning-rigid-body-2.svg",
         "alt": "清大應用力學線上課程佐證 2",
-        "label": "證據 02"
+        "label": "學習成果"
       }
     ],
     "kangaroo-math": [
       {
         "src": "img/kangaroo-math-1.svg",
         "alt": "袋鼠盃數學競賽佐證 1",
-        "label": "證據 01"
+        "label": "銅獎"
       },
       {
         "src": "img/kangaroo-math-2.svg",
         "alt": "袋鼠盃數學競賽佐證 2",
-        "label": "證據 02"
+        "label": "銀獎"
       }
     ],
     "math-competition-collection": [
       {
         "src": "img/math-competition-collection-1.svg",
         "alt": "數理競賽合輯佐證 1",
-        "label": "證據 01"
+        "label": "TRML"
       },
       {
         "src": "img/math-competition-collection-2.svg",
         "alt": "數理競賽合輯佐證 2",
-        "label": "證據 02"
+        "label": "培訓紀錄"
       },
       {
         "src": "img/math-competition-collection-3.svg",
         "alt": "數理競賽合輯佐證 3",
-        "label": "證據 03"
+        "label": "白板討論"
       },
       {
         "src": "img/math-competition-collection-4.svg",
         "alt": "數理競賽合輯佐證 4",
-        "label": "證據 04"
+        "label": "成果整理"
       }
     ],
     "global-english-certification": [
@@ -97,17 +97,17 @@
       {
         "src": "img/self-learning-global-english-1.svg",
         "alt": "全球科技趨勢觀測與資訊解構佐證 1",
-        "label": "證據 01"
+        "label": "閱讀紀錄"
       },
       {
         "src": "img/self-learning-global-english-2.svg",
         "alt": "全球科技趨勢觀測與資訊解構佐證 2",
-        "label": "證據 02"
+        "label": "語法拆解"
       },
       {
         "src": "img/self-learning-global-english-3.svg",
         "alt": "全球科技趨勢觀測與資訊解構佐證 3",
-        "label": "證據 03"
+        "label": "主題整理"
       }
     ],
     "english-debate-writing": [
@@ -126,17 +126,17 @@
       {
         "src": "img/canada-study-tour-1.svg",
         "alt": "加拿大 UBC 研習佐證 1",
-        "label": "證據 01"
+        "label": "研習活動"
       },
       {
         "src": "img/canada-study-tour-2.svg",
         "alt": "加拿大 UBC 研習佐證 2",
-        "label": "證據 02"
+        "label": "跨文化交流"
       },
       {
         "src": "img/canada-study-tour-3.svg",
         "alt": "加拿大 UBC 研習佐證 3",
-        "label": "證據 03"
+        "label": "場域觀察"
       }
     ],
     "basketball-leadership": [

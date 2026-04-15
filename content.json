@@ -68,6 +68,7 @@
             "serial": "01",
             "eyebrow": "科學探究專題",
             "title": "手持風扇降溫變因之定量分析",
+            "galleryTitle": "實驗紀錄",
             "detailSections": [
               {
                 "heading": "從軸心失效到剛性支撐的機械迭代",
@@ -88,6 +89,7 @@
             "serial": "02",
             "eyebrow": "智慧鐵人創意競賽",
             "title": "高壓情境下的跨域協作",
+            "galleryTitle": "競賽紀錄",
             "detailSections": [
               {
                 "heading": "動態修正中的工程自覺與結構敏銳度",
@@ -118,6 +120,7 @@
             "serial": "03",
             "eyebrow": "自主學習實證",
             "title": "清大應用力學線上課程",
+            "galleryTitle": "學習紀錄",
             "detailSections": [
               {
                 "heading": "從定性直覺到定量嚴謹的學術補強",
@@ -138,6 +141,7 @@
             "serial": "04",
             "eyebrow": "袋鼠盃數學競賽",
             "title": "非典型邏輯與模型建構",
+            "galleryTitle": "競賽紀錄",
             "detailSections": [
               {
                 "heading": "非典型邏輯下的模型提取與能力驗證",
@@ -158,6 +162,7 @@
             "serial": "05",
             "eyebrow": "數理競賽合輯",
             "title": "TRML 與奧數培訓之定位轉型",
+            "galleryTitle": "培訓與競賽紀錄",
             "detailSections": [
               {
                 "heading": "巔峰競技下的謙遜態度與韌性重塑",
@@ -188,6 +193,7 @@
             "serial": "06",
             "eyebrow": "全球化研究工具",
             "title": "多益金色證照 (865 分)",
+            "galleryTitle": "語言能力證明",
             "detailSections": [
               {
                 "heading": "從基礎積累到全球科研視野的定錨",
@@ -208,6 +214,7 @@
             "serial": "07",
             "eyebrow": "自主學習實證",
             "title": "全球科技趨勢觀測與資訊解構",
+            "galleryTitle": "自主學習紀錄",
             "detailSections": [
               {
                 "heading": "掌握資訊主權與新聞語境辨析",
@@ -228,6 +235,7 @@
             "serial": "08",
             "eyebrow": "語文與思辯實證",
             "title": "全國英文辯論與作文競賽",
+            "galleryTitle": "語文競賽紀錄",
             "detailSections": [
               {
                 "heading": "高壓戰場下的系統檢視與成長勇氣",
@@ -258,6 +266,7 @@
             "serial": "09",
             "eyebrow": "國際參與實證",
             "title": "加拿大 UBC 研習與跨文化校準",
+            "galleryTitle": "研習紀錄",
             "detailSections": [
               {
                 "heading": "跨域對讀下的實證觀察與美學共生",
@@ -278,6 +287,7 @@
             "serial": "10",
             "eyebrow": "跨域領導力",
             "title": "籃球校隊之動態平衡管理",
+            "galleryTitle": "球隊與比賽紀錄",
             "detailSections": [
               {
                 "heading": "規律訓練下的穩定產出與自律精神",
